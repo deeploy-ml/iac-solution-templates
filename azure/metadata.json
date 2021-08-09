@@ -1,0 +1,9 @@
+{
+    "$schema": "https://aka.ms/azure-quickstart-templates-metadata-schema#",
+    "type": "Application",
+    "itemDisplayName": "Deploy the Deeply production stack",
+    "description": "This template allows you to deploy a secure 3 node Service Fabric Cluster running Ubuntu on a Standard_D2_V2 Size VMSS, Postgres database and storage account.",
+    "summary": "This template takes a minimum amount of parameters and deploys the Deeploy stack",
+    "githubUsername": "timkleinloog",
+    "dateUpdated": "2021-07-29"
+  }
