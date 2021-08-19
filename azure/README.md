@@ -1,6 +1,6 @@
 # Create Deeploy Stack from Azure template
 
-[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fdeeploy-ml%2Fiac-solution-templates%2Fmain%2Fazure%2Fdeeploy.template.json)
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fdeeploy-ml%2Fiac-solution-templates%2Fmain%2Fazure%2Fdeeploy.mainTemplate.json)
 
 https://raw.githubusercontent.com/deeploy-ml/iac-solution-templates/main/azure/deeploy.template.json
 

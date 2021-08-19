@@ -1,0 +1,406 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+    "handler": "Microsoft.Azure.CreateUIDef",
+    "version": "0.1.2-preview",
+    "parameters": {
+        "basics": [
+            {},
+            {
+              "name": "servicePrincipalConfig",
+              "type": "Microsoft.Common.ServicePrincipalSelector",
+              "label": {
+                "password": "Service Principle Password",
+                "sectionHeader": "Service Principal"
+              },
+              "toolTip": {
+                "password": "Password"
+              },
+              "defaultValue": {
+                "principalId": "<default guid>",
+                "name": "(New) default App Id"
+              },
+              "constraints": {
+                "required": true
+              },
+              "options": {
+                "hideCertificate": true
+              }
+            }
+        ],
+        "steps": [
+      {
+        "name": "resourcegroupConfig",
+        "label": "Resource group settings",
+        "elements": [
+          {
+            "name": "coreResourceGroupName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Core resource group name",
+            "defaultValue": "deeployCoreResourceGroup",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[a-z0-9A-Z]{3,30}$",
+                  "message": "Only alphanumeric characters are allowed, and the value must be 3-30 characters long."
+                }
+              ]
+            }
+          },
+          {
+            "name": "storageResourceGroupName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Storage resource group name",
+            "defaultValue": "deeployStorageResourceGroup",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[a-z0-9A-Z]{3,30}$",
+                  "message": "Only alphanumeric characters are allowed, and the value must be 3-30 characters long."
+                }
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "name": "clusterConfig",
+                "label": "Cluster settings",
+                "elements": [
+          {
+            "name": "clusterName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Cluster name",
+            "defaultValue": "deeploy",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[a-z0-9A-Z]{3,30}$",
+                  "message": "Only alphanumeric characters are allowed, and the value must be 3-30 characters long."
+                }
+              ]
+            }
+          },
+          {
+            "name": "dnsPrefix",
+            "type": "Microsoft.Common.TextBox",
+            "label": "DNS prefix K8S API server FQDN",
+            "defaultValue": "deeploy",
+            "constraints": {
+              "required": false,
+              "validations": [
+                {
+                  "regex": "^[a-z0-9A-Z]{3,30}$",
+                  "message": "Only alphanumeric characters are allowed, and the value must be 3-30 characters long."
+                }
+              ]
+            }
+          },
+          {
+            "name": "osDiskSizeGB",
+            "type": "Microsoft.Common.Slider",
+            "min": 0,
+            "max": 1024,
+            "label": "Agent VM Memory (GB)",
+            "defaultValue": 0,
+            "showStepMarkers": false,
+            "toolTip": "Pick the size in GB, 0 will apply the default disk size for that agentVMSize",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "desiredAgentCount",
+            "type": "Microsoft.Common.Slider",
+            "min": 1,
+            "max": 50,
+            "label": "Number of cluster nodes",
+            "defaultValue": 3,
+            "showStepMarkers": false,
+            "toolTip": "Pick the desired number of nodes for the cluster",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "minAgentCount",
+            "type": "Microsoft.Common.Slider",
+            "min": 1,
+            "max": 50,
+            "label": "Number of cluster nodes",
+            "defaultValue": 1,
+            "showStepMarkers": false,
+            "toolTip": "Pick the min number of nodes for the cluster",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "maxAgentCount",
+            "type": "Microsoft.Common.Slider",
+            "min": 1,
+            "max": 50,
+            "label": "Number of cluster nodes",
+            "defaultValue": 5,
+            "showStepMarkers": false,
+            "toolTip": "Pick the desired number of nodes for the cluster",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "agentVMSize",
+            "type": "Microsoft.Compute.SizeSelector",
+            "label": "The size of the Virtual Machine",
+            "toolTip": "Pick the size of the Virtual Machine",
+            "recommendedSizes": [
+              "Standard_DS2_v2"
+            ],
+            "constraints": {
+              "allowedSizes": [],
+              "excludedSizes": [],
+              "numAvailabilityZonesRequired": 3
+            },
+            "osPlatform": "Linux"
+          },
+		  {
+			"name": "linuxAdminUsername",
+			"type": "Microsoft.Compute.UserNameTextBox",
+			"label": "Linux Admin User name",
+			"defaultValue": "deeploy",
+			"toolTip": "name the Linux VM admin",
+			"constraints": {
+				"required": true,
+				"regex": "^[a-z0-9A-Z]{1,30}$",
+				"validationMessage": "Only alphanumeric characters are allowed, and the value must be 1-30 characters long."
+			},
+			"osPlatform": "Linux"
+		  },
+		  {
+			"name": "sshRSAPublicKey",
+			"type": "Microsoft.Compute.CredentialsCombo",
+			"label": {
+				"sshPublicKey": "SSH RSA public key string"
+			},
+			"toolTip": {
+				"sshPublicKey": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm"
+			},
+			"constraints": {
+				"required": true
+			},
+            "options": {
+                "hidePassword": true
+            },
+			"osPlatform": "Linux",
+			"visible": true
+		  }	
+        ]
+      },
+      {
+        "name": "storageConfig",
+        "label": "Storage settings",
+        "elements": [
+          {
+            "name": "dbName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Azure database for PostgreSQL name",
+            "defaultValue": "deeploy",
+            "constraints": {
+              "required": true,
+              "validations": [
+                {
+                  "regex": "^[a-z0-9A-Z]{3,30}$",
+                  "message": "Only alphanumeric characters are allowed, and the value must be 3-30 characters long."
+                }
+              ]
+            }
+          },
+		  {
+			"name": "dbAdministratorLogin",
+			"type": "Microsoft.Compute.UserNameTextBox",
+			"label": "Database Admin User name",
+			"defaultValue": "deeploy",
+			"toolTip": "name the Database admin",
+			"constraints": {
+				"required": true,
+				"regex": "^[a-z0-9A-Z]{1,30}$",
+				"validationMessage": "Only alphanumeric characters are allowed, and the value must be 1-30 characters long."
+			},
+			"osPlatform": "Linux"
+		  },
+		  {
+			"name": "dbAdministratorLoginPassword",
+			"type": "Microsoft.Common.PasswordBox",
+			"label": {
+				"password": "Database admin password"
+			},
+			"toolTip": "Database administrator password (min 8 chars)",
+			"constraints": {
+				"required": true,
+				"regex": "^[a-zA-Z0-9]{8,}$",
+				"validationMessage": "Password must be at least 8 characters long, contain only numbers and letters"
+			},
+			"options": {
+				"hideConfirmation": true
+			}
+		  },
+		  {
+            "name": "dbTypeName",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Azure PostgreSQL sku name",
+            "defaultValue": "B_Gen5_1",
+            "constraints": {
+              "required": true
+            }
+          },
+		  {
+            "name": "dbTier",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Azure PostgreSQL sku name",
+            "defaultValue": "Basic",
+            "constraints": {
+              "required": true
+            }
+          },
+		  {
+			"name": "dbCapacity",
+			"type": "Microsoft.Common.DropDown",
+			"label": "Azure PostgreSQL compute capacity",
+			"defaultValue": "1",
+			"toolTip": "vCore(s)",
+			"multiselect": false,
+			"selectAll": false,
+			"filter": false,
+			"multiLine": false,
+			"defaultDescription": "vCore(s)",
+			"constraints": {
+				"allowedValues": [
+					{
+						"label": "1",
+						"value": 1
+					},
+					{
+						"label": "2",
+						"value": 2
+					},
+					{
+						"label": "4",
+						"value": 4
+					},
+					{
+						"label": "8",
+						"value": 8
+					},
+					{
+						"label": "16",
+						"value": 16
+					},
+					{
+						"label": "32",
+						"value": 32
+					}
+				],
+				"required": true
+			}
+		  },
+		  {
+            "name": "dbSizeMB",
+            "type": "Microsoft.Common.Slider",
+            "min": 1,
+            "max": 1000000,
+            "label": "Azure PostgreSQL size in MB",
+            "defaultValue": 51200,
+            "showStepMarkers": false,
+            "toolTip": "Pick the desired size of the database in MB",
+            "constraints": {
+              "required": true
+            }
+          },
+		  {
+            "name": "dbFamily",
+            "type": "Microsoft.Common.TextBox",
+            "label": "Azure PostgreSQL sku family",
+            "defaultValue": "Gen5",
+            "constraints": {
+              "required": true
+            }
+          },
+          {
+            "name": "storageAccounts",
+            "type": "Microsoft.Storage.MultiStorageAccountCombo",
+            "label": {
+                "prefix": "Storage account name + container name that will be created simultaneously",
+                "type": "Storage account type"
+                },
+                "defaultValue": {
+                    "prefix": "deeploy",
+                    "type": "Standard_LRS"
+                },
+                "constraints": {
+                    "allowedTypes": [
+                        "Premium_LRS",
+                        "Standard_LRS",
+                        "Standard_GRS"
+                     ]
+                }
+            }
+        ]
+      },
+	  {
+        "name": "keyVaultName",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Azure key vault name",
+        "defaultValue": "deeploy",
+		    "toolTip": "Globally unique key vault name",
+        "constraints": {
+        "required": true
+        }
+      },
+      {
+          "name": "tags",
+          "label": "Tags",
+          "elements": [
+              {
+                  "name": "tagsByResource",
+                  "type": "Microsoft.Common.TagsByResource",
+                  "resources": [
+                            "Microsoft.Storage/storageAccounts",
+                            "Microsoft.Compute/virtualMachines"
+                    ]
+                }
+            ]
+        }
+    ],
+    "outputs": {
+			"coreResourceGroupName": "[steps('resourcegroupConfig').coreResourceGroupName]",
+      "storageResourceGroupName": "[steps('resourcegroupConfig').storageResourceGroupName]",
+      "clusterName": "[steps('clusterConfig').clusterName]",
+      "servicePrincipalClientId": "[basics('servicePrincipalConfig').appId]",
+      "servicePrincipalObjectId": "[basics('servicePrincipalConfig').objectId]",
+      "servicePrincipalSecret": "[basics('servicePrincipalConfig').password]",
+      "dnsPrefix": "[steps('clusterConfig').dnsPrefix]",
+			"osDiskSizeGB": "[steps('clusterConfig').osDiskSizeGB]",
+			"desiredAgentCount": "[steps('clusterConfig').osDiskSizeGB]",
+			"minAgentCount": "[steps('clusterConfig').minAgentCount]",
+			"maxAgentCount": "[steps('clusterConfig').osDiskSizeGB]",
+			"agentVMSize": "[steps('clusterConfig').agentVMSize]",
+			"linuxAdminUsername": "[steps('clusterConfig').linuxAdminUsername]",
+			"sshRSAPublicKey": "[steps('clusterConfig').sshRSAPublicKey.sshPublicKey]",
+      "dbName": "[steps('storageConfig').dbName]",
+			"dbAdministratorLogin": "[steps('storageConfig').dbAdministratorLogin]",
+			"dbAdministratorLoginPassword": "[steps('storageConfig').dbAdministratorLoginPassword]",
+			"dbTypeName": "[steps('storageConfig').dbTypeName]",
+			"dbTier": "[steps('storageConfig').dbTier]",
+			"dbCapacity": "[steps('storageConfig').dbCapacity]",
+			"dbSizeMB": "[steps('storageConfig').dbSizeMB]",
+			"dbFamily": "[steps('storageConfig').dbFamily]",
+      "saName": "[steps('storageConfig').storageAccounts.prefix]",
+      "saType": "[steps('storageConfig').storageAccounts.type]",
+			"keyVaultName": "[steps('storageConfig').storageAccounts.keyVaultName]",
+      "location": "[location()]",
+      "tagsByResource": "[steps('tags').tagsByResource]"
+    }
+  }
+}

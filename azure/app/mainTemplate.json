@@ -1,0 +1,471 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+      "location": {
+          "type": "string",
+          "defaultValue": "[deployment().location]",
+          "metadata": {
+              "description": "Location of the resource"
+          }
+      },
+      "coreResourceGroupName": {
+        "type": "string",
+        "defaultValue": "deeployCoreResourceGroup",
+        "metadata": {
+          "description": "Name of the core Resource Group - Between 3 and 23 characters. Letters and numbers only"
+        }
+      },
+      "storageResourceGroupName": {
+        "type": "string",
+        "defaultValue": "deeployStorageResourceGroup",
+        "metadata": {
+          "description": "Name of your storage Resource Group - Between 3 and 23 characters. Letters and numbers only"
+        }
+      },
+      "clusterName": {
+        "type": "string",
+        "defaultValue": "deeploy",
+        "metadata": {
+          "description": "The name of the Managed Cluster resource."
+        }
+      },
+      "servicePrincipalClientId": {
+        "type": "string",
+        "metadata": {
+          "description": "The ID for the service principal."
+        }
+      },
+      "servicePrincipalObjectId": {
+        "type": "string",
+        "metadata": {
+          "description": "The ID for the service principal."
+        }
+      },
+      "servicePrincipalSecret": {
+        "type": "securestring",
+        "minLength": 8,
+        "metadata": {
+          "description": "The secret password associated with the service principal in plain text"
+        }
+      },
+      "dnsPrefix": {
+        "type": "string",
+        "defaultValue": "deeploy",
+        "metadata": {
+          "description": "Optional DNS prefix to use with hosted Kubernetes API server FQDN."
+        }
+      },
+      "osDiskSizeGB": {
+        "type": "int",
+        "defaultValue": 0,
+        "minValue": 0,
+        "maxValue": 1023,
+        "metadata": {
+          "description": "Disk size (in GB) to provision for each of the agent pool nodes. This value ranges from 0 to 1023. Specifying 0 will apply the default disk size for that agentVMSize."
+        }
+      },
+      "minAgentCount": {
+        "type": "int",
+        "defaultValue": 1,
+        "minValue": 1,
+        "maxValue": 50,
+        "metadata": {
+          "description": "The min number of nodes for the cluster."
+        }
+      },
+      "maxAgentCount": {
+        "type": "int",
+        "defaultValue": 3,
+        "minValue": 1,
+        "maxValue": 50,
+        "metadata": {
+          "description": "The max number of nodes for the cluster."
+        }
+      },
+      "desiredAgentCount": {
+        "type": "int",
+        "defaultValue": 2,
+        "minValue": 1,
+        "maxValue": 50,
+        "metadata": {
+          "description": "The desired number of nodes for the cluster."
+        }
+      },
+      "agentVMSize": {
+        "type": "string",
+        "defaultValue": "Standard_DS2_v2",
+        "metadata": {
+          "description": "The size of the Virtual Machine."
+        }
+      },
+      "linuxAdminUsername": {
+        "type": "string",
+        "defaultValue": "deeploy",
+        "metadata": {
+          "description": "User name for the Linux Virtual Machines."
+        }
+      },
+      "sshRSAPublicKey": {
+        "type": "string",
+        "metadata": {
+          "description": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm'"
+        }
+      },
+      "saName": {
+        "defaultValue": "deeploy",
+        "type": "string",
+        "metadata": {
+            "description": "Name for Azure Storage Account and Container that will be created simultaneously"
+          }
+      },
+      "saType": {
+        "defaultValue": "Standard_LRS",
+        "type": "string",
+        "metadata": {
+            "description": "Azure Storage Account Type"
+          }
+      },
+      "dbName": {
+        "defaultValue": "deeploy",
+        "type": "string",
+        "metadata": {
+            "description": "Server Name for Azure database for PostgreSQL"
+          }
+      },
+      "dbAdministratorLogin": {
+        "type": "string",
+        "defaultValue": "deeploy",
+        "minLength": 1,
+        "metadata": {
+          "description": "Database administrator login name"
+        }
+      },
+      "dbAdministratorLoginPassword": {
+        "type": "securestring",
+        "minLength": 8,
+        "metadata": {
+          "description": "Database administrator password (min 8 chars)"
+        }
+      },
+      "dbTypeName": {
+        "defaultValue": "B_Gen5_1",
+        "type": "string",
+        "metadata": {
+            "description": "Azure database for PostgreSQL sku name"
+          }
+      },
+      "dbTier": {
+        "defaultValue": "Basic",
+        "type": "string",
+        "metadata": {
+            "description": "Azure database for PostgreSQL sku name"
+          }
+      },
+      "dbCapacity": {
+        "type": "int",
+        "defaultValue": 1,
+        "metadata": {
+          "description": "Azure database for PostgreSQL compute capacity in vCores (1,2,4,8,16,32)"
+        }
+      },
+      "dbSizeMB": {
+        "type": "int",
+        "defaultValue": 51200,
+        "metadata": {
+          "description": "Azure database for PostgreSQL Sku Size "
+        }
+      },
+      "dbFamily": {
+        "type": "string",
+        "defaultValue": "Gen5",
+        "metadata": {
+          "description": "Azure database for PostgreSQL sku family"
+        }
+      },
+      "keyVaultName": {
+        "type": "string",
+        "defaultValue": "deeploy",
+        "metadata": {
+          "description": "Azure key vault name"
+        }
+      }
+  },
+  "variables": {
+    "kubernetesVersion": "1.18.19",
+    "osType": "Linux",
+    "saTier": "Standard",
+    "postgresqlVersion": "11",
+    "backupRetentionDays": 7,
+    "geoRedundantBackup": "Disabled",
+    "vaultSkuFamily": "A",
+    "vaultSkuName": "standard"
+  },
+  "resources": [
+      {
+        "type": "Microsoft.Resources/resourceGroups",
+        "apiVersion": "2020-10-01",
+        "name": "[parameters('coreResourceGroupName')]",
+        "location": "[parameters('location')]",
+        "properties": {}
+      },
+      {
+        "type": "Microsoft.Resources/resourceGroups",
+        "apiVersion": "2021-04-01",
+        "name": "[parameters('storageResourceGroupName')]",
+        "location": "[parameters('location')]",
+        "properties": {}
+      },
+      {
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "2020-10-01",
+        "name": "coreDeployment",
+        "resourceGroup": "[parameters('coreResourceGroupName')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Resources/resourceGroups/', parameters('coreResourceGroupName'))]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "expressionEvaluationOptions": {
+            "scope": "Outer"
+          },
+          "template": {
+            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {},
+            "variables": {},
+            "resources": [
+              {
+                "type": "Microsoft.ContainerService/managedClusters",
+                "apiVersion": "2020-03-01",
+                "name": "[parameters('clusterName')]",
+                "location": "[parameters('location')]",
+                "properties": {
+                  "kubernetesVersion": "[variables('kubernetesVersion')]",
+                  "dnsPrefix": "[parameters('dnsPrefix')]",
+                  "agentPoolProfiles": [
+                    {
+                      "name": "agentpool",
+                      "osDiskSizeGB": "[parameters('osDiskSizeGB')]",
+                      "enableAutoScaling": true,
+                      "count": "[parameters('desiredAgentCount')]",
+                      "minCount": "[parameters('minAgentCount')]",
+                      "maxCount": "[parameters('maxAgentCount')]",
+                      "vmSize": "[parameters('agentVMSize')]",
+                      "osType": "[variables('osType')]",
+                      "storageProfile": "ManagedDisks",
+                      "type": "VirtualMachineScaleSets",
+                      "mode": "System"
+                    }
+                  ],
+                  "linuxProfile": {
+                    "adminUsername": "[parameters('linuxAdminUsername')]",
+                    "ssh": {
+                      "publicKeys": [
+                        {
+                          "keyData": "[parameters('sshRSAPublicKey')]"
+                        }
+                      ]
+                    }
+                  },
+                  "servicePrincipalProfile": {
+                    "clientId": "[parameters('servicePrincipalClientId')]",
+                    "secret": "[parameters('servicePrincipalSecret')]"
+                  }
+                },
+                "identity": {
+                    "type": "SystemAssigned"
+                }
+              }
+            ],
+            "outputs": {}
+          }
+        }
+      },
+      {
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "2020-10-01",
+        "name": "storageDeployment",
+        "resourceGroup": "[parameters('storageResourceGroupName')]",
+        "dependsOn": [
+          "[resourceId('Microsoft.Resources/resourceGroups/', parameters('storageResourceGroupName'))]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "expressionEvaluationOptions": {
+            "scope": "Outer"
+          },
+          "template": {
+            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {},
+            "variables": {},
+            "resources": [
+              {
+                  "type": "Microsoft.Storage/storageAccounts",
+                  "apiVersion": "2021-04-01",
+                  "name": "[parameters('saName')]",
+                  "location": "[parameters('location')]",
+                  "sku": {
+                      "name": "[parameters('saType')]",
+                      "tier": "[variables('saTier')]"
+                  },
+                  "kind": "StorageV2",
+                  "properties": {
+                      "minimumTlsVersion": "TLS1_2",
+                      "allowBlobPublicAccess": true,
+                      "allowSharedKeyAccess": true,
+                      "networkAcls": {
+                          "bypass": "AzureServices",
+                          "defaultAction": "Allow"
+                      },
+                      "supportsHttpsTrafficOnly": true,
+                      "encryption": {
+                          "services": {
+                              "file": {
+                                  "keyType": "Account",
+                                  "enabled": true
+                              },
+                              "blob": {
+                                  "keyType": "Account",
+                                  "enabled": true
+                              }
+                          },
+                          "keySource": "Microsoft.Storage"
+                      },
+                      "accessTier": "Hot"
+                  }
+              },
+              {
+                  "type": "Microsoft.DBforPostgreSQL/servers",
+                  "apiVersion": "2017-12-01",
+                  "name": "[parameters('dbName')]",
+                  "location": "[parameters('location')]",
+                  "sku": {
+                    "name": "[parameters('dbTypeName')]",
+                    "tier": "[parameters('dbTier')]",
+                    "capacity": "[parameters('dbCapacity')]",
+                    "size": "[parameters('dbSizeMB')]",
+                    "family": "[parameters('dbFamily')]"
+                  },
+                  "properties": {
+                    "createMode": "Default",
+                    "version": "[variables('postgresqlVersion')]",
+                    "administratorLogin": "[parameters('dbAdministratorLogin')]",
+                    "administratorLoginPassword": "[parameters('dbAdministratorLoginPassword')]",
+                    "sslEnforcement": "Disabled",
+                    "storageProfile": {
+                      "storageMB": "[parameters('dbSizeMB')]",
+                      "backupRetentionDays": "[variables('backupRetentionDays')]",
+                      "geoRedundantBackup": "[variables('geoRedundantBackup')]"
+                    }
+                  }
+              },
+              {
+                "type": "Microsoft.KeyVault/vaults",
+                "name": "[parameters('keyVaultName')]",
+                "apiVersion": "2018-02-14",
+                "location": "[parameters('location')]",
+                "properties": {
+                  "sku": {
+                    "name": "[variables('vaultSkuName')]",
+                    "family": "[variables('vaultSkuFamily')]"
+                  },
+                  "tenantId": "[subscription().tenantId]",
+                  "accessPolicies": [],
+                  "enabledForDeployment": false,
+                  "enableRbacAuthorization": true,
+                  "enabledForVolumeEncryption": false
+                }
+              }
+          ],
+          "outputs": {}
+          }
+        }
+      },
+      {
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "2020-10-01",
+        "name": "dependencies",
+        "resourceGroup": "[parameters('storageResourceGroupName')]",
+        "dependsOn": [
+          "storageDeployment"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "expressionEvaluationOptions": {
+            "scope": "Outer"
+          },
+          "template": {
+            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0",
+            "parameters": {},
+            "variables": {},
+            "resources": [
+              {
+                "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                "apiVersion": "2021-02-01",
+                "name": "[concat(parameters('saName'), '/default/container')]",
+                "properties": {
+                  "publicAccess": "None"
+                }
+              },
+              {
+                "type": "Microsoft.KeyVault/vaults/keys",
+                "apiVersion": "2021-06-01-preview",
+                "name": "[concat(parameters('keyVaultName'), '/key')]",
+                "properties": {
+                  "kty": "RSA",
+                  "keySize": 2048
+                }
+              },
+              {
+                "type": "Microsoft.Authorization/roleAssignments",
+                "apiVersion": "2021-04-01-preview",
+                "name": "[guid(subscription().id)]",
+                "scope": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('storageResourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('saName'))]",
+                "properties": {
+                    "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+                    "principalId": "[parameters('servicePrincipalObjectId')]"
+                }
+              },
+              {
+                "type": "Microsoft.Authorization/roleAssignments",
+                "apiVersion": "2021-04-01-preview",
+                "name": "[guid(subscription().id)]",
+                "scope": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('storageResourceGroupName'), '/providers/Microsoft.KeyVault/vaults/', parameters('keyVaultName'))]",
+                "properties": {
+                    "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]",
+                    "principalId": "[parameters('servicePrincipalObjectId')]"
+                }
+              }
+            ],
+            "outputs": {}
+          }
+        }
+      },
+      {
+        "apiVersion": "2020-06-01",
+        "name": "pid-391c02d9-09ac-441f-9bed-03c20eb34671-partnercenter",
+        "type": "Microsoft.Resources/deployments",
+        "location": "[parameters('location')]",
+        "properties": {
+            "mode": "Incremental",
+            "template": {
+                "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                "contentVersion": "1.0.0.0",
+                "resources": []
+            }
+        }
+      }  
+    ],
+    "outputs": {}
+}
+  
+  
+  
+  
+  
+  
+  
+  

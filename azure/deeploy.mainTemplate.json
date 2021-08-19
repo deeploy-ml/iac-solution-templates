@@ -13,7 +13,7 @@
           "type": "string",
           "defaultValue": "deeployCoreResourceGroup",
           "metadata": {
-            "description": "Name of your cluster - Between 3 and 23 characters. Letters and numbers only"
+            "description": "Name of the core Resource Group - Between 3 and 23 characters. Letters and numbers only"
           }
         },
         "storageResourceGroupName": {
@@ -28,6 +28,25 @@
           "defaultValue": "deeploy",
           "metadata": {
             "description": "The name of the Managed Cluster resource."
+          }
+        },
+        "servicePrincipalClientId": {
+          "type": "string",
+          "metadata": {
+            "description": "The ID for the service principal."
+          }
+        },
+        "servicePrincipalObjectId": {
+          "type": "string",
+          "metadata": {
+            "description": "The ID for the service principal."
+          }
+        },
+        "servicePrincipalSecret": {
+          "type": "securestring",
+          "minLength": 8,
+          "metadata": {
+            "description": "The secret password associated with the service principal in plain text"
           }
         },
         "dnsPrefix": {
@@ -70,7 +89,7 @@
           "minValue": 1,
           "maxValue": 50,
           "metadata": {
-            "description": "The max number of nodes for the cluster."
+            "description": "The desired number of nodes for the cluster."
           }
         },
         "agentVMSize": {
@@ -93,21 +112,18 @@
             "description": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm'"
           }
         },
-        "osType": {
-          "type": "string",
-          "defaultValue": "Linux",
-          "allowedValues": [
-            "Linux"
-          ],
-          "metadata": {
-            "description": "The type of operating system."
-          }
-        },
         "saName": {
           "defaultValue": "deeploy",
           "type": "string",
           "metadata": {
-              "description": "Name for Azure Storage Account"
+              "description": "Name for Azure Storage Account and Container that will be created simultaneously"
+            }
+        },
+        "saType": {
+          "defaultValue": "Standard_LRS",
+          "type": "string",
+          "metadata": {
+              "description": "Azure Storage Account Type"
             }
         },
         "dbName": {
@@ -150,7 +166,7 @@
           "type": "int",
           "defaultValue": 1,
           "metadata": {
-            "description": "Azure database for PostgreSQL compute capacity in vCores (2,4,8,16,32)"
+            "description": "Azure database for PostgreSQL compute capacity in vCores (1,2,4,8,16,32)"
           }
         },
         "dbSizeMB": {
@@ -177,8 +193,8 @@
     },
     "variables": {
       "kubernetesVersion": "1.18.19",
-      "storageAccountType": "Standard_LRS",
-      "storageAccountTier": "Standard",
+      "osType": "Linux",
+      "saTier": "Standard",
       "postgresqlVersion": "11",
       "backupRetentionDays": 7,
       "geoRedundantBackup": "Disabled",
@@ -236,7 +252,7 @@
                         "minCount": "[parameters('minAgentCount')]",
                         "maxCount": "[parameters('maxAgentCount')]",
                         "vmSize": "[parameters('agentVMSize')]",
-                        "osType": "[parameters('osType')]",
+                        "osType": "[variables('osType')]",
                         "storageProfile": "ManagedDisks",
                         "type": "VirtualMachineScaleSets",
                         "mode": "System"
@@ -251,6 +267,10 @@
                           }
                         ]
                       }
+                    },
+                    "servicePrincipalProfile": {
+                      "clientId": "[parameters('servicePrincipalClientId')]",
+                      "secret": "[parameters('servicePrincipalSecret')]"
                     }
                   },
                   "identity": {
@@ -287,8 +307,8 @@
                     "name": "[parameters('saName')]",
                     "location": "[parameters('location')]",
                     "sku": {
-                        "name": "[variables('storageAccountType')]",
-                        "tier": "[variables('storageAccountTier')]"
+                        "name": "[parameters('saType')]",
+                        "tier": "[variables('saTier')]"
                     },
                     "kind": "StorageV2",
                     "properties": {
@@ -333,6 +353,7 @@
                       "version": "[variables('postgresqlVersion')]",
                       "administratorLogin": "[parameters('dbAdministratorLogin')]",
                       "administratorLoginPassword": "[parameters('dbAdministratorLoginPassword')]",
+                      "sslEnforcement": "Disabled",
                       "storageProfile": {
                         "storageMB": "[parameters('dbSizeMB')]",
                         "backupRetentionDays": "[variables('backupRetentionDays')]",
@@ -361,7 +382,68 @@
             "outputs": {}
             }
           }
-        }  
+        },
+        {
+          "type": "Microsoft.Resources/deployments",
+          "apiVersion": "2020-10-01",
+          "name": "dependencies",
+          "resourceGroup": "[parameters('storageResourceGroupName')]",
+          "dependsOn": [
+            "storageDeployment"
+          ],
+          "properties": {
+            "mode": "Incremental",
+            "expressionEvaluationOptions": {
+              "scope": "Outer"
+            },
+            "template": {
+              "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+              "contentVersion": "1.0.0.0",
+              "parameters": {},
+              "variables": {},
+              "resources": [
+                {
+                  "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                  "apiVersion": "2021-02-01",
+                  "name": "[concat(parameters('saName'), '/default/container')]",
+                  "properties": {
+                    "publicAccess": "None"
+                  }
+                },
+                {
+                  "type": "Microsoft.KeyVault/vaults/keys",
+                  "apiVersion": "2021-06-01-preview",
+                  "name": "[concat(parameters('keyVaultName'), '/key')]",
+                  "properties": {
+                    "kty": "RSA",
+                    "keySize": 2048
+                  }
+                },
+                {
+                  "type": "Microsoft.Authorization/roleAssignments",
+                  "apiVersion": "2021-04-01-preview",
+                  "name": "[guid(subscription().id)]",
+                  "scope": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('storageResourceGroupName'), '/providers/Microsoft.Storage/storageAccounts/', parameters('saName'))]",
+                  "properties": {
+                      "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
+                      "principalId": "[parameters('servicePrincipalObjectId')]"
+                  }
+                },
+                {
+                  "type": "Microsoft.Authorization/roleAssignments",
+                  "apiVersion": "2021-04-01-preview",
+                  "name": "[guid(subscription().id)]",
+                  "scope": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('storageResourceGroupName'), '/providers/Microsoft.KeyVault/vaults/', parameters('keyVaultName'))]",
+                  "properties": {
+                      "roleDefinitionId": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Authorization/roleDefinitions/', '00482a5a-887f-4fb3-b363-3b7fe8e74483')]",
+                      "principalId": "[parameters('servicePrincipalObjectId')]"
+                  }
+                }
+              ],
+              "outputs": {}
+            }
+          }
+        }
       ],
       "outputs": {}
     }
