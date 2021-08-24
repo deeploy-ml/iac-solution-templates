@@ -1,0 +1,227 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+  "Description": "AWS CloudFormation for Deeploy AWS Cloud resources",
+  "Parameters": {
+      "name": {
+         "Default": "deeploy",
+         "Type": "String",
+         "Description": "Stack name",
+         "MinLength": "1",
+         "MaxLength": "64",
+         "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+         "ConstraintDescription": "must begin with a letter and contain only alphanumericcharacters."
+      },
+      "callingUserArn": {
+         "Description": "Calling user ARN",
+         "Type": "String"
+      },
+      "deeployUser": {
+         "NoEcho": true,
+         "Default": "deeploy",
+         "Type": "String",
+         "Description": "The IAM account username",
+         "MinLength": "1",
+         "MaxLength": "16",
+         "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+         "ConstraintDescription": "must begin with a letter and contain only alphanumeric"
+      },
+      "DBName": {
+         "Default": "deeploy",
+         "Type": "String",
+         "Description": "The database name",
+         "MinLength": "1",
+         "MaxLength": "64",
+         "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+         "ConstraintDescription": "must begin with a letter and contain only alphanumericcharacters."
+      },
+      "DBUser": {
+         "NoEcho": true,
+         "Default": "deeploy",
+         "Type": "String",
+         "Description": "The database admin account username",
+         "MinLength": "1",
+         "MaxLength": "16",
+         "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+         "ConstraintDescription": "must begin with a letter and contain only alphanumeric"
+      },
+      "DBPassword": {
+         "NoEcho": true,
+         "Default": "deeploy",
+         "Type": "String",
+         "Description": "The database admin account username",
+         "MinLength": 1,
+         "MaxLength": 24,
+         "AllowedPattern": "[a-zA-Z0-9]+",
+         "ConstraintDescription": "must contain only alphanumeric characters."
+      },
+      "DBAllocatedStorage": {
+         "Default": 5,
+         "Type": "Number",
+         "Description": "The size of the database (Gb)",
+         "MinValue": 5,
+         "MaxValue": 1024,
+         "ConstraintDescription": "must be between 5 and 1024Gb."
+      },
+      "DBInstanceClass": {
+         "Default": "db.t2.small",
+         "Type": "String",
+         "Description": "The database instance type",
+         "AllowedValues": ["db.t1.micro", "db.m1.small", "db.m1.medium", "db.m1.large",
+             "db.m1.xlarge", "db.m2.xlarge", "db.m2.2xlarge", "db.m2.4xlarge", "db.m3.medium", 
+             "db.m3.large", "db.m3.xlarge", "db.m3.2xlarge", "db.m4.large", "db.m4.xlarge", 
+             "db.m4.2xlarge", "db.m4.4xlarge", "db.m4.10xlarge", "db.r3.large", "db.r3.xlarge", 
+             "db.r3.2xlarge", "db.r3.4xlarge", "db.r3.8xlarge", "db.m2.xlarge", "db.m2.2xlarge", 
+             "db.m2.4xlarge", "db.cr1.8xlarge", "db.t2.micro", "db.t2.small", "db.t2.medium", "db.t2.large"],
+         "ConstraintDescription": "must select a valid database instance type."
+      },
+      "NodeSecurityGroup": {
+         "Default": "",
+         "Type": "String",
+         "Description": "The EC2 security group that contains instances that need access to the database"
+      },
+      "S3BucketName": {
+         "Default": "deeploy",
+         "Type": "String",
+         "Description": "The s3 bucket name",
+         "MinLength": "1",
+         "MaxLength": "64",
+         "AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+         "ConstraintDescription": "must begin with a letter and contain only alphanumericcharacters."
+      }
+   },
+   "Conditions": {
+      "HasNodeSecurityGroup": {"Fn::Not": [{"Fn::Equals": ["", {"Ref": "NodeSecurityGroup"}]}]}
+    },
+   "Resources" : {
+      "RDSPostgreSQL": {
+         "Type" : "AWS::RDS::DBInstance",
+         "Properties" : {
+            "DBName"            : {"Ref": "DBName"},
+            "Engine"            : "postgres",
+            "MasterUsername"    : {"Ref": "DBUser" },
+            "DBInstanceClass"   : {"Ref": "DBInstanceClass" },
+            "VPCSecurityGroups"  : [{"Fn::GetAtt" : ["DBSecurityGroup", "GroupId"]}],
+            "AllocatedStorage"  : {"Ref": "DBAllocatedStorage" },
+            "MasterUserPassword": {"Ref": "DBPassword"},
+            "EngineVersion"     : "12.7"
+         },
+         "DependsOn" : "DBSecurityGroup"
+      },
+      "DBSecurityGroup": {
+         "Type": "AWS::EC2::SecurityGroup",
+         "Properties": {
+            "SecurityGroupIngress": {
+               "IpProtocol": "-1",
+               "SourceSecurityGroupName": {"Fn::If": ["HasNodeSecurityGroup", {"Ref": "NodeSecurityGroup"}, {"Ref": "AWS::NoValue"}]}
+            },
+            "GroupDescription": "database access"
+         }
+      },
+      "IAMUser": {
+         "Type" : "AWS::IAM::User",
+         "Properties" : {
+            "UserName" : {"Ref": "deeployUser"}
+         }
+      },
+      "IAMKeys": {
+         "Type": "AWS::IAM::AccessKey",
+         "Properties": {
+            "UserName": {"Ref": "IAMUser"}
+         }
+      },
+      
+      "KMSKey": {
+         "Type" : "AWS::KMS::Key",
+         "Properties" : {
+            "Description" : "A symmetric CMK",
+            "KeyPolicy" : {
+               "Version": "2012-10-17",
+               "Id": "key-default-1",
+               "Statement": [
+                  {
+                     "Sid": "Allow administration of the key",
+                     "Effect": "Allow",
+                     "Principal": { "AWS": {"Ref": "callingUserArn"}},
+                     "Action": [
+                        "kms:Create*",
+                        "kms:Describe*",
+                        "kms:Enable*",
+                        "kms:List*",
+                        "kms:Put*",
+                        "kms:Update*",
+                        "kms:Revoke*",
+                        "kms:Disable*",
+                        "kms:Get*",
+                        "kms:Delete*",
+                        "kms:ScheduleKeyDeletion",
+                        "kms:CancelKeyDeletion"
+                     ], 
+                     "Resource": "*"
+                  },
+                  {
+                     "Sid": "Allow use of the key",
+                     "Effect": "Allow",
+                     "Principal": { "AWS": {"Fn::GetAtt" : [ "IAMUser", "Arn"]}},
+                     "Action": [
+                        "kms:DescribeKey",
+                        "kms:Encrypt",
+                        "kms:Decrypt",
+                        "kms:ReEncrypt*",
+                        "kms:GenerateDataKey",
+                        "kms:GenerateDataKeyWithoutPlaintext"
+                     ], 
+                     "Resource": "*"
+                  }
+               ]
+            }
+         },
+         "DependsOn" : "IAMUser"
+      },
+
+      "KMSAlias": {
+            "Type": "AWS::KMS::Alias",
+            "Properties": {
+               "AliasName": {"Fn::Join": ["", ["alias/", {"Ref": "name"}]]},
+               "TargetKeyId": {"Ref": "KMSKey"}
+            },
+            "DependsOn" : "KMSKey"
+      },
+      "S3Bucket" : {
+         "Type" : "AWS::S3::Bucket",
+         "Properties": {
+            "BucketName": {"Ref": "S3BucketName"}
+            }
+      },
+      "S3Policy": {
+         "Type": "AWS::IAM::Policy",
+         "Properties": {
+            "PolicyName": "DeeployS3Policy",
+            "PolicyDocument": {
+               "Statement": [{
+                  "Effect": "Allow",
+                  "Action": "s3:*",
+                  "Resource": { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref" : "S3Bucket" }, "/*"]]}
+               }]
+            },
+            "Users": [ { "Ref": "IAMUser" } ]
+         }
+      } 
+  },
+  "Outputs" : {
+      "IAMUserKeyID": {
+         "Value": { "Ref" : "IAMKeys"}
+      },
+      "IAMUserSecretKeyID": {
+         "Value": {"Fn::GetAtt" : [ "IAMKeys", "SecretAccessKey"]}
+      },
+      "DBName": {
+         "Value" : {"Ref" : "RDSPostgreSQL"}
+      },
+      "BucketName": {
+          "Value" : {"Ref" : "S3Bucket"}
+      },
+      "KMSAlias": {
+         "Value": {"Ref": "KMSAlias"}
+      }
+  }
+}     

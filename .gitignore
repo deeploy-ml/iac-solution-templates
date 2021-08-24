@@ -2,3 +2,4 @@
 deeploy-old.template.json
 arm-ttk/
 cmd.txt
+*.zip
