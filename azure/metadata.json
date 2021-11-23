@@ -1,9 +1,0 @@
-{
-    "$schema": "https://aka.ms/azure-quickstart-templates-metadata-schema#",
-    "type": "Application",
-    "itemDisplayName": "Deploy the Deeply production stack",
-    "description": "This template allows you to deploy a AKS cluster, PostgreSQL database, storage account and key vault needed for your Deeploy installation.",
-    "summary": "This template takes a minimum amount of parameters and deploys the Deeploy stack",
-    "githubUsername": "timkleinloog",
-    "dateUpdated": "2021-07-29"
-  }

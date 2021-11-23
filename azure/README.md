@@ -1,6 +1,6 @@
 # Create Deeploy Stack from Azure template
 
-[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fdeeploy-ml%2Fiac-solution-templates%2Fmain%2Fazure%2Fdeeploy.mainTemplate.json)
+[![Deploy To Azure](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/deploytoazure.svg?sanitize=true)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fdeeploy-ml%2Fiac-solution-templates%2Fmain%2Fazure%2Fdeeploy.template.json)
 
 This solution template allows you to deploy the Deeploy Stack on Azure. It creates 2 resource groups:
 * Core resource group: a Maneged AKS Cluster running Ubuntu Server on a Standard_D2_v2 Size Virtual Machine Scale set.
@@ -12,7 +12,7 @@ Run (parameter values are defaults):
 az deployment sub create \
 --name Deeploy \
 --location westeurope \
---template-file "./azure/deeploy.mainTemplate.json" \
+--template-file "./azure/deeploy.template.json" \
 --parameters coreResourceGroupName=deeployCoreResourceGroup \
 storageResourceGroupName=deeployStorageResourceGroup \
 clusterName=deeploytest \
@@ -38,4 +38,5 @@ dbFamily=Gen5 \
 keyVaultName=deeploy \
 saName=deeploy \
 saType=Standard_LRS
+tagsByResource={}
 ```
